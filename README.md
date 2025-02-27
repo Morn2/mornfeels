@@ -1,4 +1,4 @@
-```markdown
+markdown
 # Mornfeels
 
 Mornfeels is an MVP project designed to help users log and analyze their moods. The project starts with a simple CSV-based logging system that uses built-in reminders to prompt mood entries. An existing Python script is used for data analysis and visualization. In the future, Mornfeels will evolve into a full Android application using Kivy with an enhanced user interface and additional features.
