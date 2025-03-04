@@ -1,0 +1,16 @@
+# Byte-compiled Dateien und Cache
+__pycache__/
+*.py[cod]
+
+# Virtuelle Umgebungen
+env/
+venv/
+.venv/
+
+# Build- und Distributionsordner
+build/
+dist/
+
+# Weitere temporäre Dateien
+*.log
+
