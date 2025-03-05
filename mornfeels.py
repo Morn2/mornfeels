@@ -15,10 +15,13 @@ from kivy.uix.gridlayout import GridLayout
 from kivy.uix.scrollview import ScrollView
 from kivy.uix.scatterlayout import ScatterLayout
 from kivy.uix.image import Image
-from kivy.uix.textinput import TextInput  # Added missing import
+from kivy.uix.textinput import TextInput
 from kivy.core.window import Window
 from kivy.clock import Clock
 from fpdf import FPDF  # pip install fpdf
+
+# Import Tkinter for file dialog (works if Tkinter is installed)
+from tkinter import Tk, filedialog
 
 # Set a "phone-like" window size (portrait)
 Window.size = (360, 640)
@@ -116,22 +119,27 @@ def create_line_chart(filtered_data):
     return out_path
 
 def create_daily_pie_charts(filtered_data):
-    """Create pie charts for individual days (placeholder) and return a list of PNG paths."""
+    """
+    Create pie charts for individual days (placeholder) and return a list of PNG paths.
+    The images are named with the corresponding date.
+    """
     if not os.path.exists(CHART_OUTPUT_DIR):
         os.makedirs(CHART_OUTPUT_DIR)
-    day1 = os.path.join(CHART_OUTPUT_DIR, "pie_day1.png")
-    plt.figure()
-    plt.pie([10, 20, 5], labels=["1", "2", "3"], autopct='%1.1f%%')
-    plt.title("Day 1 Pie")
-    plt.savefig(day1, bbox_inches='tight')
-    plt.close()
-    day2 = os.path.join(CHART_OUTPUT_DIR, "pie_day2.png")
-    plt.figure()
-    plt.pie([15, 5, 10], labels=["4", "5", "6"], autopct='%1.1f%%')
-    plt.title("Day 2 Pie")
-    plt.savefig(day2, bbox_inches='tight')
-    plt.close()
-    return [day1, day2]
+    # Extract unique dates from the filtered data
+    unique_dates = sorted(set(row[0] for row in filtered_data))
+    paths = []
+    for d in unique_dates:
+        # Remove hyphens for filename
+        date_tag = d.replace("-", "")
+        out_path = os.path.join(CHART_OUTPUT_DIR, f"pie_{date_tag}.png")
+        plt.figure()
+        # Dummy data for pie chart
+        plt.pie([10, 20, 5], labels=["1", "2", "3"], autopct='%1.1f%%')
+        plt.title(f"Pie Chart for {d}")
+        plt.savefig(out_path, bbox_inches='tight')
+        plt.close()
+        paths.append(out_path)
+    return paths
 
 def create_bar_chart(filtered_data):
     """Create a bar chart (placeholder) and return the PNG path."""
@@ -157,7 +165,7 @@ def create_summary_pie_chart(filtered_data):
     plt.close()
     return out_path
 
-def generate_pdf_from_images(image_paths, output_pdf="charts.pdf"):
+def generate_pdf_from_images(image_paths, output_pdf):
     """Combine the given PNG images into a PDF using FPDF."""
     pdf = FPDF()
     pdf.set_auto_page_break(auto=True, margin=10)
@@ -343,13 +351,20 @@ class VisualizationResultsPopup(Popup):
         self.content = layout
 
     def on_save_pdf(self, image_paths):
-        generate_pdf_from_images(image_paths, output_pdf="mood_charts.pdf")
+        # Use Tkinter's filedialog to ask for a save location
+        root = Tk()
+        root.withdraw()
+        save_path = filedialog.asksaveasfilename(defaultextension=".pdf",
+                                                 filetypes=[("PDF files", "*.pdf")])
+        if save_path:
+            generate_pdf_from_images(image_paths, output_pdf=save_path)
+        root.destroy()
 
 class VisualizePopup(Popup):
     """
     Popup to select the date range and desired chart types.
     The top row has the Start and End Date spinners,
-    followed by a 2x2 Grid with checkboxes (each next to its label),
+    followed by a 2x2 grid with checkboxes (each next to its label),
     and at the bottom, the "Generate" and "Close" buttons side by side.
     """
     def __init__(self, **kwargs):
@@ -365,7 +380,7 @@ class VisualizePopup(Popup):
         date_layout.add_widget(self.start_spinner)
         date_layout.add_widget(self.end_spinner)
         main_layout.add_widget(date_layout)
-        # Row 2: 2x2 Grid for chart options
+        # Row 2: 2x2 grid for chart options
         grid = GridLayout(cols=2, size_hint=(1, 0.3), spacing=10)
         box1 = BoxLayout(orientation='horizontal', spacing=5)
         self.checkbox_line = CheckBox(size_hint=(None, None), size=(40, 40))
