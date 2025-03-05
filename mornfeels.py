@@ -16,15 +16,17 @@ def init_csv(file_path):
     """Create the CSV file with headers if it does not exist."""
     if not os.path.exists(file_path):
         with open(file_path, mode='w', newline='', encoding='utf-8') as file:
-            writer = csv.writer(file)
-            writer.writerow(['Timestamp', 'Mood', 'Note'])
+            writer = csv.writer(file, delimiter=';')
+            writer.writerow(['Date', 'Time', 'Value', 'Note'])
 
 def save_entry(file_path, mood, note):
-    """Save a new entry in the CSV file with the current timestamp."""
-    timestamp = datetime.now().isoformat()
+    """Save a new entry in the CSV file with the current date and time."""
+    now = datetime.now()
+    date_str = now.strftime("%Y-%m-%d")
+    time_str = now.strftime("%H:%M:%S")
     with open(file_path, mode='a', newline='', encoding='utf-8') as file:
-        writer = csv.writer(file)
-        writer.writerow([timestamp, mood, note])
+        writer = csv.writer(file, delimiter=';')
+        writer.writerow([date_str, time_str, mood, note])
 
 class ReminderPopup(Popup):
     def __init__(self, file_path, **kwargs):

@@ -4,7 +4,7 @@
 git add .
 
 # Lese die Commit-Nachricht als Parameter oder verwende eine Standardnachricht
-commit_message=${1:-"Automatisches Update"}
+commit_message=${1:-"Non specific commit message"}
 
 # Führe git commit aus
 git commit -m "$commit_message"
