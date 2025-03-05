@@ -9,6 +9,9 @@ from kivy.uix.label import Label
 from kivy.uix.textinput import TextInput
 from kivy.uix.button import Button
 from kivy.clock import Clock
+from kivy.core.window import Window
+
+Window.size  = (360, 640) # Width x Height for portrait mode
 
 CSV_FILE = "mornfeels_data.csv"
 
@@ -68,7 +71,7 @@ class ReminderPopup(Popup):
 
 class MainScreen(BoxLayout):
     def __init__(self, file_path, **kwargs):
-        super().__init__(orientation='vertical', spacing=10, padding=10, **kwargs)
+        super().__init__(orientation='horizontal', spacing=20, padding=10, **kwargs)
         self.file_path = file_path
 
         self.add_widget(Label(text="Welcome to Mornfeels MVP"))
