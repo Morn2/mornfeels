@@ -10,6 +10,7 @@ from kivy.uix.textinput import TextInput
 from kivy.uix.button import Button
 from kivy.clock import Clock
 from kivy.core.window import Window
+from kivy.uix.spinner import Spinner  # <-- Import Spinner for the dropdown
 
 # Force a "phone-like" window size (portrait).
 Window.size = (360, 640)
@@ -45,20 +46,20 @@ class ReminderPopup(Popup):
         # Label at the top (centered horizontally).
         label = Label(
             text="How are you feeling?",
-            pos_hint={'center_x': 0.5, 'top': 0.9},
+            pos_hint={'center_x': 0.5, 'top': 0.95},
             size_hint=(None, None)
         )
         layout.add_widget(label)
 
-        # TextInput for mood
-        self.mood_input = TextInput(
-            hint_text="Mood",
-            multiline=False,
+        # Spinner (drop-down) for mood values 1..6
+        self.mood_spinner = Spinner(
+            text="Select Mood",
+            values=["1", "2", "3", "4", "5", "6"],
             size_hint=(0.8, None),
             height=40,
-            pos_hint={'center_x': 0.5, 'top': 0.75}
+            pos_hint={'center_x': 0.5, 'top': 0.85}
         )
-        layout.add_widget(self.mood_input)
+        layout.add_widget(self.mood_spinner)
 
         # Label for optional note
         note_label = Label(
@@ -83,7 +84,7 @@ class ReminderPopup(Popup):
             text="Save",
             size_hint=(0.3, None),
             height=40,
-            pos_hint={'center_x': 0.3, 'top': 0.4}
+            pos_hint={'center_x': 0.3, 'top': 0.3}
         )
         save_btn.bind(on_press=self.save_data)
         layout.add_widget(save_btn)
@@ -93,7 +94,7 @@ class ReminderPopup(Popup):
             text="Cancel",
             size_hint=(0.3, None),
             height=40,
-            pos_hint={'center_x': 0.7, 'top': 0.4}
+            pos_hint={'center_x': 0.7, 'top': 0.3}
         )
         cancel_btn.bind(on_press=self.dismiss)
         layout.add_widget(cancel_btn)
@@ -101,9 +102,12 @@ class ReminderPopup(Popup):
         self.content = layout
 
     def save_data(self, instance):
-        mood = self.mood_input.text.strip()
+        # Retrieve the selected mood value from the spinner
+        mood = self.mood_spinner.text.strip()
         note = self.note_input.text.strip()
-        if mood:
+
+        # Only save if a valid mood has been selected (i.e., not the default text)
+        if mood != "Select Mood":
             save_entry(self.file_path, mood, note)
         self.dismiss()
 
@@ -112,7 +116,7 @@ class MainScreen(FloatLayout):
         super().__init__(**kwargs)
         self.file_path = file_path
 
-        # Button in the top-right corner
+        # Button in the top area
         manual_btn = Button(
             text="Add Entry Manually",
             size_hint=(None, None),
