@@ -3,7 +3,7 @@ import csv
 from datetime import datetime
 
 from kivy.app import App
-from kivy.uix.boxlayout import BoxLayout
+from kivy.uix.floatlayout import FloatLayout
 from kivy.uix.popup import Popup
 from kivy.uix.label import Label
 from kivy.uix.textinput import TextInput
@@ -11,7 +11,8 @@ from kivy.uix.button import Button
 from kivy.clock import Clock
 from kivy.core.window import Window
 
-Window.size  = (360, 640) # Width x Height for portrait mode
+# Force a "phone-like" window size (portrait).
+Window.size = (360, 640)
 
 CSV_FILE = "mornfeels_data.csv"
 
@@ -39,27 +40,64 @@ class ReminderPopup(Popup):
         self.size_hint = (0.8, 0.5)
         self.auto_dismiss = False
 
-        layout = BoxLayout(orientation='vertical', spacing=10, padding=10)
-        layout.add_widget(Label(text="How are you feeling?"))
+        layout = FloatLayout()
+
+        # Label at the top (centered horizontally).
+        label = Label(
+            text="How are you feeling?",
+            pos_hint={'center_x': 0.5, 'top': 0.9},
+            size_hint=(None, None)
+        )
+        layout.add_widget(label)
 
         # TextInput for mood
-        self.mood_input = TextInput(hint_text="Mood", multiline=False)
+        self.mood_input = TextInput(
+            hint_text="Mood",
+            multiline=False,
+            size_hint=(0.8, None),
+            height=40,
+            pos_hint={'center_x': 0.5, 'top': 0.75}
+        )
         layout.add_widget(self.mood_input)
 
-        layout.add_widget(Label(text="Additional Note (optional)"))
-        self.note_input = TextInput(hint_text="Note", multiline=False)
+        # Label for optional note
+        note_label = Label(
+            text="Additional Note (optional)",
+            pos_hint={'center_x': 0.5, 'top': 0.65},
+            size_hint=(None, None)
+        )
+        layout.add_widget(note_label)
+
+        # TextInput for note
+        self.note_input = TextInput(
+            hint_text="Note",
+            multiline=False,
+            size_hint=(0.8, None),
+            height=40,
+            pos_hint={'center_x': 0.5, 'top': 0.55}
+        )
         layout.add_widget(self.note_input)
 
-        btn_layout = BoxLayout(orientation='horizontal', size_hint_y=None, height=40, spacing=10)
-        save_btn = Button(text="Save")
+        # "Save" button
+        save_btn = Button(
+            text="Save",
+            size_hint=(0.3, None),
+            height=40,
+            pos_hint={'center_x': 0.3, 'top': 0.4}
+        )
         save_btn.bind(on_press=self.save_data)
-        btn_layout.add_widget(save_btn)
+        layout.add_widget(save_btn)
 
-        cancel_btn = Button(text="Cancel")
+        # "Cancel" button
+        cancel_btn = Button(
+            text="Cancel",
+            size_hint=(0.3, None),
+            height=40,
+            pos_hint={'center_x': 0.7, 'top': 0.4}
+        )
         cancel_btn.bind(on_press=self.dismiss)
-        btn_layout.add_widget(cancel_btn)
+        layout.add_widget(cancel_btn)
 
-        layout.add_widget(btn_layout)
         self.content = layout
 
     def save_data(self, instance):
@@ -69,14 +107,18 @@ class ReminderPopup(Popup):
             save_entry(self.file_path, mood, note)
         self.dismiss()
 
-class MainScreen(BoxLayout):
+class MainScreen(FloatLayout):
     def __init__(self, file_path, **kwargs):
-        super().__init__(orientation='horizontal', spacing=20, padding=10, **kwargs)
+        super().__init__(**kwargs)
         self.file_path = file_path
 
-        self.add_widget(Label(text="Welcome to Mornfeels MVP"))
-
-        manual_btn = Button(text="Add Entry Manually", size_hint=(1, 0.2))
+        # Button in the top-right corner
+        manual_btn = Button(
+            text="Add Entry Manually",
+            size_hint=(None, None),
+            size=(300, 100),
+            pos_hint={'center_x': 0.5, 'top': 0.9}
+        )
         manual_btn.bind(on_press=self.show_reminder)
         self.add_widget(manual_btn)
 
@@ -87,12 +129,11 @@ class MainScreen(BoxLayout):
 class MornfeelsApp(App):
     def build(self):
         init_csv(CSV_FILE)
-        self.main_screen = MainScreen(CSV_FILE)
-        return self.main_screen
+        return MainScreen(CSV_FILE)
 
     def on_start(self):
         # Schedule the reminder popup to display every 60 seconds (adjustable interval)
-        Clock.schedule_interval(self.main_screen.show_reminder, 60)
+        Clock.schedule_interval(self.root.show_reminder, 60)
 
 if __name__ == '__main__':
     MornfeelsApp().run()
