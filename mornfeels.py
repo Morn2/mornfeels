@@ -48,7 +48,7 @@ def save_entry(file_path, mood, note):
         writer = csv.writer(file, delimiter=';')
         writer.writerow([date_str, time_str, mood, note])
 
-def load_unique_dates_from_csv():
+'''def load_unique_dates_from_csv():
     """
     Read DATA_CSV and return a sorted list of unique dates (YYYY-MM-DD).
     """
@@ -80,7 +80,45 @@ def filter_data_by_dates(start_date, end_date):
                 d = row[0]
                 if start_date <= d <= end_date:
                     data.append(row)
+    return data'''
+
+def load_unique_dates_from_csv():
+    """
+    Read DATA_CSV and return a sorted list of unique dates (YYYY-MM-DD).
+    """
+    if not os.path.exists(DATA_CSV):
+        print("DEBUG: DATA_CSV not found.")
+        return []
+    dates = set()
+    with open(DATA_CSV, mode='r', encoding='utf-8') as f:
+        reader = csv.reader(f, delimiter=';')
+        header = next(reader, None)
+        for row in reader:
+            if len(row) >= 3:
+                dates.add(row[0])
+    unique_dates = sorted(dates)
+    print("DEBUG: Unique dates loaded:", unique_dates)
+    return unique_dates
+
+def filter_data_by_dates(start_date, end_date):
+    """
+    Filter data from DATA_CSV between start_date and end_date (inclusive).
+    Assumes dates are in the format YYYY-MM-DD.
+    Returns a list of rows.
+    """
+    data = []
+    with open(DATA_CSV, mode='r', encoding='utf-8') as f:
+        reader = csv.reader(f, delimiter=';')
+        header = next(reader, None)
+        for row in reader:
+            if len(row) >= 3:
+                d = row[0]
+                if start_date <= d <= end_date:
+                    data.append(row)
+    print(f"DEBUG: Filtered data count between {start_date} and {end_date}: {len(data)}")
     return data
+
+
 
 def load_settings():
     """Load reminder times from SETTINGS_FILE as a list of (hour, minute) tuples."""
