@@ -61,7 +61,9 @@ def load_unique_dates_from_csv():
         for row in reader:
             if len(row) >= 4:
                 dates.add(row[0])
-    return sorted(dates)
+    unique_dates = sorted(dates)
+    print("Unique dates loaded:", unique_dates)  # Debug print
+    return unique_dates
 
 def filter_data_by_dates(start_date, end_date):
     """
