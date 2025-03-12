@@ -144,37 +144,82 @@ def save_settings(times):
         for (hour, minute) in times:
             writer.writerow([hour, minute])
 
-# ---------------------- Chart Generation Placeholders ----------------------------
+# ---------------------- Chart Generation  ----------------------------
 
 def create_line_chart(filtered_data):
-    """Create a line chart (placeholder) and save it as a PNG."""
     if not os.path.exists(CHART_OUTPUT_DIR):
         os.makedirs(CHART_OUTPUT_DIR)
+    # Group data by date and calculate the average value
+    day_values = {}
+    for row in filtered_data:
+        d = row[0]
+        try:
+            val = int(row[2])
+        except ValueError:
+            continue
+        day_values.setdefault(d, []).append(val)
+    dates = sorted(day_values.keys())
+    averages = [sum(day_values[d]) / len(day_values[d]) for d in dates]
     plt.figure(figsize=(5, 3))
-    plt.plot([1, 2, 3], [3, 5, 2], marker='o')
-    plt.title("Line Chart Example")
+    plt.plot(dates, averages, marker='o', color="blue")
+    plt.title("Daily Average Mood")
+    plt.xlabel("Date")
+    plt.ylabel("Average Mood")
+    plt.xticks(rotation=45)
     out_path = os.path.join(CHART_OUTPUT_DIR, "line_chart.png")
+    plt.tight_layout()
     plt.savefig(out_path, bbox_inches='tight')
     plt.close()
     return out_path
 
+
 def create_daily_pie_charts(filtered_data):
     """
-    Create pie charts for individual days (placeholder) and return a list of PNG paths.
-    The images are named with the corresponding date.
+    Create pie charts for individual days and return a list of PNG paths.
+    The images are named using the corresponding date.
     """
     if not os.path.exists(CHART_OUTPUT_DIR):
         os.makedirs(CHART_OUTPUT_DIR)
+    # Define color mapping
+    color_mapping = {
+        6: "lightgreen",
+        5: "darkgreen",
+        4: "lightsalmon",
+        3: "darkred",
+        2: "lightgrey",
+        1: "darkgrey",
+        0: "black"
+    }
     # Extract unique dates from the filtered data
     unique_dates = sorted(set(row[0] for row in filtered_data))
     paths = []
     for d in unique_dates:
-        # Remove hyphens for filename
+        # Filter data for day d
+        day_data = [row for row in filtered_data if row[0] == d]
+        # Calculate frequency for each value
+        frequency = {}
+        for row in day_data:
+            try:
+                val = int(row[2])
+            except ValueError:
+                continue
+            frequency[val] = frequency.get(val, 0) + 1
+        # Prepare data for the pie chart
+        labels = []
+        sizes = []
+        colors = []
+        # Sort keys in descending order (you can change the order if desired)
+        for val in sorted(frequency.keys(), reverse=True):
+            labels.append(str(val))
+            sizes.append(frequency[val])
+            colors.append(color_mapping.get(val, "grey"))
+        if not sizes:
+            continue
+        # Create and save the pie chart
         date_tag = d.replace("-", "")
         out_path = os.path.join(CHART_OUTPUT_DIR, f"pie_{date_tag}.png")
         plt.figure()
-        # Dummy data for pie chart
-        plt.pie([10, 20, 5], labels=["1", "2", "3"], autopct='%1.1f%%')
+        plt.pie(sizes, labels=labels, colors=colors, autopct='%1.1f%%')
         plt.title(f"Pie Chart for {d}")
         plt.savefig(out_path, bbox_inches='tight')
         plt.close()
@@ -182,11 +227,32 @@ def create_daily_pie_charts(filtered_data):
     return paths
 
 def create_bar_chart(filtered_data):
-    """Create a bar chart (placeholder) and return the PNG path."""
+    """Create a bar chart and return the PNG path."""
     if not os.path.exists(CHART_OUTPUT_DIR):
         os.makedirs(CHART_OUTPUT_DIR)
+    # Count frequencies overall
+    frequency = {}
+    for row in filtered_data:
+        try:
+            val = int(row[2])
+        except ValueError:
+            continue
+        frequency[val] = frequency.get(val, 0) + 1
+    # Sort keys (for example, in descending order)
+    keys = sorted(frequency.keys(), reverse=True)
+    values = [frequency[k] for k in keys]
+    color_mapping = {
+        6: "lightgreen",
+        5: "darkgreen",
+        4: "lightsalmon",
+        3: "darkred",
+        2: "lightgrey",
+        1: "darkgrey",
+        0: "black"
+    }
+    colors = [color_mapping.get(k, "grey") for k in keys]
     plt.figure(figsize=(5, 3))
-    plt.bar(["Day1", "Day2", "Day3"], [10, 3, 7], color='green')
+    plt.bar([str(k) for k in keys], values, color=colors)
     plt.title("Bar Chart Example")
     out_path = os.path.join(CHART_OUTPUT_DIR, "bar_chart.png")
     plt.savefig(out_path, bbox_inches='tight')
@@ -194,16 +260,36 @@ def create_bar_chart(filtered_data):
     return out_path
 
 def create_summary_pie_chart(filtered_data):
-    """Create a summary pie chart (placeholder) and return the PNG path."""
+    """Create a summary pie chart and return the PNG path."""
     if not os.path.exists(CHART_OUTPUT_DIR):
         os.makedirs(CHART_OUTPUT_DIR)
+    frequency = {}
+    for row in filtered_data:
+        try:
+            val = int(row[2])
+        except ValueError:
+            continue
+        frequency[val] = frequency.get(val, 0) + 1
+    keys = sorted(frequency.keys(), reverse=True)
+    sizes = [frequency[k] for k in keys]
+    color_mapping = {
+        6: "lightgreen",
+        5: "darkgreen",
+        4: "lightsalmon",
+        3: "darkred",
+        2: "lightgrey",
+        1: "darkgrey",
+        0: "black"
+    }
+    colors = [color_mapping.get(k, "grey") for k in keys]
     plt.figure(figsize=(5, 3))
-    plt.pie([30, 20, 50], labels=["1", "2", "3"], autopct='%1.1f%%')
+    plt.pie(sizes, labels=[str(k) for k in keys], colors=colors, autopct='%1.1f%%')
     plt.title("Summary Pie Chart")
     out_path = os.path.join(CHART_OUTPUT_DIR, "summary_pie.png")
     plt.savefig(out_path, bbox_inches='tight')
     plt.close()
     return out_path
+
 
 def generate_pdf_from_images(image_paths, output_pdf):
     """Combine the given PNG images into a PDF using FPDF."""
