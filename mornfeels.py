@@ -19,6 +19,7 @@ from kivy.uix.textinput import TextInput
 from kivy.core.window import Window
 from kivy.clock import Clock
 from fpdf import FPDF  # pip install fpdf
+from kivy.uix.scatter import Scatter
 
 # Import Tkinter for file dialog (works if Tkinter is installed)
 from tkinter import Tk, filedialog
@@ -39,6 +40,7 @@ def init_csv(file_path):
             writer = csv.writer(file, delimiter=';')
             writer.writerow(['Date', 'Time', 'Value', 'Note'])
 
+
 def save_entry(file_path, mood, note):
     """Save a new entry in the CSV file with the current date and time."""
     now = datetime.now()
@@ -48,39 +50,6 @@ def save_entry(file_path, mood, note):
         writer = csv.writer(file, delimiter=';')
         writer.writerow([date_str, time_str, mood, note])
 
-'''def load_unique_dates_from_csv():
-    """
-    Read DATA_CSV and return a sorted list of unique dates (YYYY-MM-DD).
-    """
-    if not os.path.exists(DATA_CSV):
-        return []
-    dates = set()
-    with open(DATA_CSV, mode='r', encoding='utf-8') as f:
-        reader = csv.reader(f, delimiter=';')
-        header = next(reader, None)
-        for row in reader:
-            if len(row) >= 4:
-                dates.add(row[0])
-    unique_dates = sorted(dates)
-    print("Unique dates loaded:", unique_dates)  # Debug print
-    return unique_dates
-
-def filter_data_by_dates(start_date, end_date):
-    """
-    Filter data from DATA_CSV between start_date and end_date (inclusive).
-    Assumes dates are in the format YYYY-MM-DD.
-    Returns a list of rows.
-    """
-    data = []
-    with open(DATA_CSV, mode='r', encoding='utf-8') as f:
-        reader = csv.reader(f, delimiter=';')
-        header = next(reader, None)
-        for row in reader:
-            if len(row) >= 4:
-                d = row[0]
-                if start_date <= d <= end_date:
-                    data.append(row)
-    return data'''
 
 def load_unique_dates_from_csv():
     """
@@ -99,6 +68,7 @@ def load_unique_dates_from_csv():
     unique_dates = sorted(dates)
     print("DEBUG: Unique dates loaded:", unique_dates)
     return unique_dates
+
 
 def filter_data_by_dates(start_date, end_date):
     """
@@ -137,6 +107,7 @@ def load_settings():
                     pass
     return sorted(times)
 
+
 def save_settings(times):
     """Save the list of (hour, minute) tuples to SETTINGS_FILE."""
     with open(SETTINGS_FILE, mode='w', newline='', encoding='utf-8') as file:
@@ -144,7 +115,9 @@ def save_settings(times):
         for (hour, minute) in times:
             writer.writerow([hour, minute])
 
+
 # ---------------------- Chart Generation  ----------------------------
+
 
 def create_line_chart(filtered_data):
     if not os.path.exists(CHART_OUTPUT_DIR):
@@ -174,29 +147,20 @@ def create_line_chart(filtered_data):
 
 
 def create_daily_pie_charts(filtered_data):
-    """
-    Create pie charts for individual days and return a list of PNG paths.
-    The images are named using the corresponding date.
-    """
     if not os.path.exists(CHART_OUTPUT_DIR):
         os.makedirs(CHART_OUTPUT_DIR)
-    # Define color mapping
+
     color_mapping = {
-        6: "lightgreen",
-        5: "darkgreen",
-        4: "lightsalmon",
-        3: "darkred",
-        2: "lightgrey",
-        1: "darkgrey",
+        6: "lightgreen", 5: "darkgreen",
+        4: "lightsalmon", 3: "darkred",
+        2: "lightgrey",   1: "darkgrey",
         0: "black"
     }
-    # Extract unique dates from the filtered data
+
     unique_dates = sorted(set(row[0] for row in filtered_data))
     paths = []
     for d in unique_dates:
-        # Filter data for day d
         day_data = [row for row in filtered_data if row[0] == d]
-        # Calculate frequency for each value
         frequency = {}
         for row in day_data:
             try:
@@ -204,27 +168,28 @@ def create_daily_pie_charts(filtered_data):
             except ValueError:
                 continue
             frequency[val] = frequency.get(val, 0) + 1
-        # Prepare data for the pie chart
-        labels = []
-        sizes = []
-        colors = []
-        # Sort keys in descending order (you can change the order if desired)
+
+        # Prepare data for pie
+        labels, sizes, colors = [], [], []
         for val in sorted(frequency.keys(), reverse=True):
             labels.append(str(val))
             sizes.append(frequency[val])
             colors.append(color_mapping.get(val, "grey"))
         if not sizes:
             continue
-        # Create and save the pie chart
+
         date_tag = d.replace("-", "")
         out_path = os.path.join(CHART_OUTPUT_DIR, f"pie_{date_tag}.png")
-        plt.figure()
+
+        # Ensure a white background
+        plt.figure(figsize=(5, 3), facecolor="white")
         plt.pie(sizes, labels=labels, colors=colors, autopct='%1.1f%%')
         plt.title(f"Pie Chart for {d}")
-        plt.savefig(out_path, bbox_inches='tight')
+        plt.savefig(out_path, bbox_inches='tight', facecolor="white")
         plt.close()
         paths.append(out_path)
     return paths
+
 
 def create_bar_chart(filtered_data):
     """Create a bar chart and return the PNG path."""
@@ -258,6 +223,7 @@ def create_bar_chart(filtered_data):
     plt.savefig(out_path, bbox_inches='tight')
     plt.close()
     return out_path
+
 
 def create_summary_pie_chart(filtered_data):
     """Create a summary pie chart and return the PNG path."""
@@ -300,7 +266,9 @@ def generate_pdf_from_images(image_paths, output_pdf):
         pdf.image(img_path, x=10, y=10, w=180)
     pdf.output(output_pdf, "F")
 
+
 # ---------------------- Popup Classes ----------------------------
+
 
 class ReminderPopup(Popup):
     """Popup to add a new mood entry."""
@@ -343,6 +311,7 @@ class ReminderPopup(Popup):
         if mood != "Select Mood":
             save_entry(self.file_path, mood, note)
         self.dismiss()
+
 
 class SettingsPopup(Popup):
     """
@@ -436,6 +405,7 @@ class SettingsPopup(Popup):
                 pass
         self.time_input.text = ""
 
+
 class VisualizationResultsPopup(Popup):
     """
     Displays the generated charts in a scrollable, zoomable layout.
@@ -445,39 +415,42 @@ class VisualizationResultsPopup(Popup):
         super().__init__(**kwargs)
         self.title = "Visualization Results"
         self.size_hint = (0.95, 0.9)
-        layout = FloatLayout()
-        scroll_view = ScrollView(
-            size_hint=(0.9, 0.75),
-            pos_hint={'center_x': 0.5, 'top': 0.9},
-            do_scroll_x=False,
-            do_scroll_y=True
-        )
-        layout.add_widget(scroll_view)
-        scatter_layout = FloatLayout(size_hint_y=None)
-        scatter_layout.height = 0
-        scroll_view.add_widget(scatter_layout)
-        y_offset = 0
+
+        # Main vertical layout
+        main_layout = BoxLayout(orientation='vertical', spacing=10, padding=10)
+
+        # Scrollable area for the images
+        scroll_view = ScrollView(size_hint=(1, 0.85), do_scroll_x=False)
+        # Use a vertical BoxLayout inside the ScrollView
+        images_layout = BoxLayout(orientation='vertical', size_hint_y=None, spacing=10)
+        images_layout.bind(minimum_height=images_layout.setter('height'))
+
         for img_path in image_paths:
-            s = ScatterLayout(size_hint=(1, None), height=300)
-            img_widget = Image(source=img_path, allow_stretch=True, keep_ratio=True,
-                               size_hint=(None, None), size=(300, 300))
-            s.add_widget(img_widget)
-            s.pos = (0, -y_offset)
-            y_offset += s.height
-            scatter_layout.add_widget(s)
-        scatter_layout.height = y_offset
-        pdf_btn = Button(text="Save to PDF", size_hint=(0.3, None), height=40,
-                         pos_hint={'center_x': 0.3, 'y': 0.05})
+            # Wrap each image in a Scatter for zoom/drag functionality
+            scatter = Scatter(size_hint=(1, None), height=300)
+            # Use absolute path for the image
+            image = Image(source=os.path.abspath(img_path),
+                          size_hint=(None, None), size=(300, 300))
+            scatter.add_widget(image)
+            images_layout.add_widget(scatter)
+
+        scroll_view.add_widget(images_layout)
+        main_layout.add_widget(scroll_view)
+
+        # Bottom buttons: "Save to PDF" and "Close"
+        btn_layout = BoxLayout(orientation='horizontal', size_hint=(1, 0.15), spacing=10)
+        pdf_btn = Button(text="Save to PDF")
         pdf_btn.bind(on_press=lambda x: self.on_save_pdf(image_paths))
-        layout.add_widget(pdf_btn)
-        close_btn = Button(text="Close", size_hint=(0.3, None), height=40,
-                           pos_hint={'center_x': 0.7, 'y': 0.05})
+        close_btn = Button(text="Close")
         close_btn.bind(on_press=self.dismiss)
-        layout.add_widget(close_btn)
-        self.content = layout
+        btn_layout.add_widget(pdf_btn)
+        btn_layout.add_widget(close_btn)
+        main_layout.add_widget(btn_layout)
+
+        self.content = main_layout
 
     def on_save_pdf(self, image_paths):
-        # Use Tkinter's filedialog to ask for a save location
+        from tkinter import Tk, filedialog
         root = Tk()
         root.withdraw()
         save_path = filedialog.asksaveasfilename(defaultextension=".pdf",
@@ -485,6 +458,7 @@ class VisualizationResultsPopup(Popup):
         if save_path:
             generate_pdf_from_images(image_paths, output_pdf=save_path)
         root.destroy()
+
 
 class VisualizePopup(Popup):
     """
@@ -559,6 +533,7 @@ class VisualizePopup(Popup):
             results_popup = VisualizationResultsPopup(image_paths)
             results_popup.open()
 
+
 class MainScreen(FloatLayout):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -595,9 +570,11 @@ class MainScreen(FloatLayout):
         for (hour, minute) in self.reminder_times:
             print(f"  - {hour:02d}:{minute:02d}")
 
+
 class MornfeelsApp(App):
     def build(self):
         return MainScreen()
+
 
 if __name__ == "__main__":
     MornfeelsApp().run()
