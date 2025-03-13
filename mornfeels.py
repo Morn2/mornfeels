@@ -2,7 +2,8 @@ import os
 import csv
 from datetime import datetime, timedelta
 import matplotlib.pyplot as plt
-
+import matplotlib.dates as mdates
+from datetime import datetime
 from kivy.app import App
 from kivy.uix.floatlayout import FloatLayout
 from kivy.uix.popup import Popup
@@ -122,27 +123,45 @@ def save_settings(times):
 def create_line_chart(filtered_data):
     if not os.path.exists(CHART_OUTPUT_DIR):
         os.makedirs(CHART_OUTPUT_DIR)
-    # Group data by date and calculate the average value
+
+    # 1) Parse data into {date_obj: [values]} dict
     day_values = {}
     for row in filtered_data:
-        d = row[0]
+        d_str = row[0]  # e.g. "2025-01-01"
         try:
+            d_obj = datetime.strptime(d_str, "%Y-%m-%d")
             val = int(row[2])
         except ValueError:
             continue
-        day_values.setdefault(d, []).append(val)
-    dates = sorted(day_values.keys())
-    averages = [sum(day_values[d]) / len(day_values[d]) for d in dates]
-    plt.figure(figsize=(5, 3))
-    plt.plot(dates, averages, marker='o', color="blue")
+        day_values.setdefault(d_obj, []).append(val)
+
+    # 2) Sort dates and compute daily averages
+    sorted_dates = sorted(day_values.keys())
+    averages = [sum(day_values[d]) / len(day_values[d]) for d in sorted_dates]
+
+    # 3) Plot
+    plt.figure(figsize=(6, 4))
+    plt.plot(sorted_dates, averages, marker='o', color="blue")
     plt.title("Daily Average Mood")
     plt.xlabel("Date")
     plt.ylabel("Average Mood")
-    plt.xticks(rotation=45)
+
+    # 4) Configure x-axis to handle dates
+    ax = plt.gca()
+    # Use an automatic date locator (reduces overlap by limiting ticks)
+    ax.xaxis.set_major_locator(mdates.AutoDateLocator(maxticks=10))
+    # Format the dates in a short format, e.g. "Jan-01"
+    ax.xaxis.set_major_formatter(mdates.DateFormatter('%b-%d'))
+
+    # 5) Rotate and reduce font size to avoid overlap
+    plt.xticks(rotation=45, fontsize=8)
+
+    # 6) Save the figure
     out_path = os.path.join(CHART_OUTPUT_DIR, "line_chart.png")
     plt.tight_layout()
     plt.savefig(out_path, bbox_inches='tight')
     plt.close()
+
     return out_path
 
 
