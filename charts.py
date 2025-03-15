@@ -1,24 +1,56 @@
+# charts.py
 import os
-from datetime import datetime
-from fpdf import FPDF
-
-
-# charts.py (Ergänzung oder in einer neuen Datei chart_widgets.py)
-
+from datetime import datetime, timedelta
 from kivy.uix.boxlayout import BoxLayout
 from kivy.garden.graph import Graph, MeshLinePlot
-from datetime import datetime
+from kivy.uix.label import Label
+from kivy.graphics import PushMatrix, PopMatrix, Rotate
+
+class RotatedLabel(Label):
+    def __init__(self, angle=90, **kwargs):
+        super(RotatedLabel, self).__init__(**kwargs)
+        self.angle = angle
+        with self.canvas.before:
+            PushMatrix()
+            self.rot = Rotate(angle=self.angle, origin=self.center)
+        with self.canvas.after:
+            PopMatrix()
+        self.bind(pos=self.update_origin, size=self.update_origin)
+
+    def update_origin(self, *args):
+        self.rot.origin = self.center
 
 class LineChartWidget(BoxLayout):
-    def __init__(self, filtered_data, **kwargs):
+    def __init__(self, filtered_data, start_date_str, end_date_str, **kwargs):
         """
-        filtered_data: Liste von Zeilen, z. B. [["2025-01-01", "12:00:00", "4", "Note"], ...]
-                      Diese Daten sollen hier in ein Liniendiagramm umgewandelt werden.
+        filtered_data: Liste von Zeilen, z.B. [["2025-01-01", "12:00:00", "4", "Note"], ...]
+        start_date_str, end_date_str: Strings im Format "YYYY-MM-DD"
         """
-        super().__init__(**kwargs)
+        super(LineChartWidget, self).__init__(**kwargs)
         self.orientation = "vertical"
+        self.padding = 10
+        self.spacing = 10
 
-        # 1) Tagesdurchschnitt berechnen
+        # --------------------------------------------------------
+        # (1) Titel hinzufügen
+        # --------------------------------------------------------
+        title_label = Label(
+            text="Daily Average Mood",  # Diagramm-Titel
+            size_hint=(1, None),
+            height=40,
+            font_size="16sp",
+            bold=True
+        )
+        self.add_widget(title_label)
+
+        # --------------------------------------------------------
+        # (2) Datenverarbeitung
+        # --------------------------------------------------------
+        # Konvertiere Start- und End-Daten in datetime-Objekte
+        start_date = datetime.strptime(start_date_str, "%Y-%m-%d")
+        end_date = datetime.strptime(end_date_str, "%Y-%m-%d")
+
+        # day_values sammelt pro Tag alle Mood-Werte
         day_values = {}
         for row in filtered_data:
             date_str = row[0]  # z.B. "2025-01-01"
@@ -27,19 +59,31 @@ class LineChartWidget(BoxLayout):
                 val = int(row[2])
             except ValueError:
                 continue
-            day_values.setdefault(d_obj, []).append(val)
+            # Nur Werte im gewünschten Zeitraum berücksichtigen
+            if start_date <= d_obj <= end_date:
+                day_values.setdefault(d_obj, []).append(val)
 
-        # 2) Sortieren und Durchschnitts-Liste anlegen
-        sorted_dates = sorted(day_values.keys())
-        averages = [sum(day_values[d]) / len(day_values[d]) for d in sorted_dates]
+        # Erstelle eine vollständige Liste aller Tage von start_date bis end_date
+        all_dates = []
+        current_date = start_date
+        while current_date <= end_date:
+            all_dates.append(current_date)
+            current_date += timedelta(days=1)
 
-        # Für das Plotten mit Kivy Garden Graph:
-        #    x-Achse = Indizes (0, 1, 2, ...)
-        #    y-Achse = Durchschnittswerte
-        # Später können wir manuell Labels anlegen.
+        # Baue aus day_values die Liste "averages" (tagesweise Durchschnitt oder None)
+        averages = []
+        for d in all_dates:
+            if d in day_values and len(day_values[d]) > 0:
+                avg = sum(day_values[d]) / len(day_values[d])
+            else:
+                avg = None  # Keine Daten für diesen Tag
+            averages.append(avg)
 
-        # 3) Graph-Objekt erstellen
+        # --------------------------------------------------------
+        # (3) Graph-Objekt erstellen
+        # --------------------------------------------------------
         self.graph = Graph(
+            size_hint=(1, 0.8),
             xlabel='Date',
             ylabel='Average Mood',
             x_ticks_minor=0,
@@ -47,50 +91,80 @@ class LineChartWidget(BoxLayout):
             y_ticks_major=1,
             y_grid_label=True,
             x_grid_label=True,
-            padding=5,
+            padding=10,
             x_grid=True,
             y_grid=True,
             draw_border=True,
-            background_color=[1, 1, 1, 1],  # Weißer Hintergrund
-            border_color=[0, 0, 0, 1],      # Schwarzer Rand
-            tick_color=[0, 0, 0, 1]         # Schwarze Achsen-Beschriftungen
+            background_color=[1, 1, 1, 1],  # Weiß
+            border_color=[0, 0, 0, 1],      # Schwarz
+            tick_color=[0, 0, 0, 1],        # Schwarze Achsen
         )
 
-        # 4) Achsen-Bereiche dynamisch anpassen
-        if averages:
-            # x von 0 bis len(averages)-1
+        # --------------------------------------------------------
+        # (4) Achsenbereiche anpassen
+        # --------------------------------------------------------
+        valid_values = [v for v in averages if v is not None]
+        if valid_values:
             self.graph.xmin = 0
             self.graph.xmax = len(averages) - 1
-            # y z. B. von min(averages) - 0.5 bis max(averages) + 0.5
-            y_min = min(averages) - 0.5
-            y_max = max(averages) + 0.5
-            # oder fest: self.graph.ymin, self.graph.ymax = 0, 6
-            self.graph.ymin = min(0, y_min)
-            self.graph.ymax = max(6, y_max)
+            y_min = min(valid_values) - 0.5
+            y_max = max(valid_values) + 0.5
+            self.graph.ymin = min(0, y_min)  # mindestens 0
+            self.graph.ymax = max(6, y_max)  # mindestens 6
         else:
-            # Fallback, falls keine Daten
             self.graph.xmin, self.graph.xmax = 0, 0
             self.graph.ymin, self.graph.ymax = 0, 6
 
-        # 5) Plot (Linie mit Punkten)
-        plot = MeshLinePlot(color=[0, 0, 1, 1])  # Blau
-        plot.points = [(i, avg) for i, avg in enumerate(averages)]
-        self.graph.add_plot(plot)
+        # --------------------------------------------------------
+        # (5) Liniendiagramm + Punkte einfügen
+        # --------------------------------------------------------
+        # Linie
+        line_plot = MeshLinePlot(color=[0, 0, 1, 1])
+        line_plot.line_width = 2
+        line_plot.points = [
+            (i, avg if avg is not None else 0)
+            for i, avg in enumerate(averages)
+        ]
+        self.graph.add_plot(line_plot)
 
-        # 6) Graph dem Layout hinzufügen
+        # Punkte
+        points_plot = MeshLinePlot(color=[0, 0, 1, 1])
+        points_plot.mode = 'points'
+        points_plot.point_size = 5
+        points_plot.points = [
+            (i, avg)
+            for i, avg in enumerate(averages)
+            if avg is not None
+        ]
+        self.graph.add_plot(points_plot)
+
+        # Graph dem Layout hinzufügen
         self.add_widget(self.graph)
 
-        # Optional: Manuelle Labels für das X-Achsen-Raster
-        #           Da Graph() standardmäßig nur Zahlen anzeigt,
-        #           könntest du z. B. unten eigene Label-Widgets hinzufügen.
-        #           (siehe "Optionale X-Labels" unten)
-
-#----------------------------------------------------------------------------------------
-def generate_pdf_from_images(image_paths, output_pdf):
-    pdf = FPDF()
-    pdf.set_auto_page_break(auto=True, margin=10)
-    for img_path in image_paths:
-        pdf.add_page()
-        pdf.image(img_path, x=10, y=10, w=180)
-    pdf.output(output_pdf, "F")
+        # --------------------------------------------------------
+        # (6) X-Labels unten (rotierte Beschriftung)
+        # --------------------------------------------------------
+        if all_dates:
+            label_layout = BoxLayout(
+                orientation='horizontal',
+                size_hint=(1, None),
+                height=60,
+                spacing=5
+            )
+            num_dates = len(all_dates)
+            # Beschrifte alle ca. 7 Tage, plus den ersten und letzten Tag
+            n = max(1, num_dates // 7)
+            for i, d_obj in enumerate(all_dates):
+                if i == 0 or i == num_dates - 1 or i % n == 0:
+                    date_str = d_obj.strftime("%b-%d")
+                else:
+                    date_str = ""
+                lbl = RotatedLabel(
+                    text=date_str,
+                    size_hint=(None, 1),
+                    width=40,
+                    font_size='12sp'
+                )
+                label_layout.add_widget(lbl)
+            self.add_widget(label_layout)
 
