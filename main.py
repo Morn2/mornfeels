@@ -15,6 +15,8 @@ from kivy.uix.image import Image
 from kivy.uix.textinput import TextInput
 from kivy.core.window import Window
 from tkinter import Tk, filedialog
+from charts import LineChartWidget
+from utils import save_widget_as_image
 
 import data
 import charts
@@ -159,51 +161,55 @@ class SettingsPopup(Popup):
                 pass
         self.time_input.text = ""
 
+
 class VisualizationResultsPopup(Popup):
-    """
-    Zeigt die generierten Charts in einem scrollbaren, zoombaren Layout an.
-    Enthält einen "Save to PDF"-Button.
-    """
-    def __init__(self, image_paths, **kwargs):
+    def __init__(self, filtered_data, **kwargs):
         super().__init__(**kwargs)
         self.title = "Visualization Results"
         self.size_hint = (0.95, 0.9)
 
-        main_layout = BoxLayout(orientation='vertical', spacing=10, padding=10)
+        # Hauptlayout für den Inhalt
+        main_layout = BoxLayout(orientation='vertical')
 
-        scroll_view = ScrollView(size_hint=(1, 0.85), do_scroll_x=False)
-        images_layout = BoxLayout(orientation='vertical', size_hint_y=None, spacing=10)
-        images_layout.bind(minimum_height=images_layout.setter('height'))
+        # Das Diagramm-Widget (hier z.B. das Liniendiagramm)
+        self.chart_widget = LineChartWidget(filtered_data)
+        main_layout.add_widget(self.chart_widget)
 
-        for img_path in image_paths:
-            scatter = Scatter(size_hint=(1, None), height=300)
-            image = Image(source=os.path.abspath(img_path),
-                          size_hint=(None, None), size=(300, 300))
-            scatter.add_widget(image)
-            images_layout.add_widget(scatter)
+        # Button-Layout am unteren Rand
+        btn_layout = BoxLayout(orientation='horizontal', size_hint=(1, 0.1), spacing=10, padding=10)
 
-        scroll_view.add_widget(images_layout)
-        main_layout.add_widget(scroll_view)
-
-        btn_layout = BoxLayout(orientation='horizontal', size_hint=(1, 0.15), spacing=10)
         pdf_btn = Button(text="Save to PDF")
-        pdf_btn.bind(on_press=lambda x: self.on_save_pdf(image_paths))
+        pdf_btn.bind(on_press=self.save_as_pdf)
+        btn_layout.add_widget(pdf_btn)
+
         close_btn = Button(text="Close")
         close_btn.bind(on_press=self.dismiss)
-        btn_layout.add_widget(pdf_btn)
         btn_layout.add_widget(close_btn)
-        main_layout.add_widget(btn_layout)
 
+        main_layout.add_widget(btn_layout)
         self.content = main_layout
 
-    def on_save_pdf(self, image_paths):
+    def save_as_pdf(self, instance):
+        # Zunächst das Widget als Bild speichern
+        import tempfile
+        from tkinter import Tk, filedialog
+        # Erstelle einen temporären Dateipfad
+        temp_img = tempfile.NamedTemporaryFile(suffix=".png", delete=False).name
+        save_widget_as_image(self.chart_widget, temp_img)
+
+        # Wähle über einen Dateidialog den Speicherort für das PDF
         root = Tk()
         root.withdraw()
         save_path = filedialog.asksaveasfilename(defaultextension=".pdf",
                                                  filetypes=[("PDF files", "*.pdf")])
         if save_path:
-            charts.generate_pdf_from_images(image_paths, output_pdf=save_path)
+            # Verwende die vorhandene Funktion zum Erzeugen des PDFs
+            # Hier wird nur ein Bild in das PDF eingefügt
+            from charts import generate_pdf_from_images
+            generate_pdf_from_images([temp_img], output_pdf=save_path)
         root.destroy()
+
+
 
 class VisualizePopup(Popup):
     """
@@ -264,7 +270,8 @@ class VisualizePopup(Popup):
         filtered_data = data.filter_data_by_dates(start_date, end_date)
         image_paths = []
         if self.checkbox_line.active:
-            image_paths.append(charts.create_line_chart(filtered_data))
+            results_popup = VisualizationResultsPopup(filtered_data)
+            results_popup.open()
         if self.checkbox_daily_pie.active:
             image_paths.extend(charts.create_daily_pie_charts(filtered_data))
         if self.checkbox_bar.active:

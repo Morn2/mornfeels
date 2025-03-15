@@ -1,153 +1,91 @@
 import os
-import matplotlib.pyplot as plt
-import matplotlib.dates as mdates
 from datetime import datetime
 from fpdf import FPDF
 
-CHART_OUTPUT_DIR = "generated_charts"
 
-def create_line_chart(filtered_data):
-    if not os.path.exists(CHART_OUTPUT_DIR):
-        os.makedirs(CHART_OUTPUT_DIR)
+# charts.py (Ergänzung oder in einer neuen Datei chart_widgets.py)
 
-    # 1) Daten parsen: {Datum_objekt: [Werte]}
-    day_values = {}
-    for row in filtered_data:
-        d_str = row[0]  # z.B. "2025-01-01"
-        try:
-            d_obj = datetime.strptime(d_str, "%Y-%m-%d")
-            val = int(row[2])
-        except ValueError:
-            continue
-        day_values.setdefault(d_obj, []).append(val)
+from kivy.uix.boxlayout import BoxLayout
+from kivy.garden.graph import Graph, MeshLinePlot
+from datetime import datetime
 
-    # 2) Daten sortieren und tägliche Durchschnitte berechnen
-    sorted_dates = sorted(day_values.keys())
-    averages = [sum(day_values[d]) / len(day_values[d]) for d in sorted_dates]
+class LineChartWidget(BoxLayout):
+    def __init__(self, filtered_data, **kwargs):
+        """
+        filtered_data: Liste von Zeilen, z. B. [["2025-01-01", "12:00:00", "4", "Note"], ...]
+                      Diese Daten sollen hier in ein Liniendiagramm umgewandelt werden.
+        """
+        super().__init__(**kwargs)
+        self.orientation = "vertical"
 
-    # 3) Plot erstellen
-    plt.figure(figsize=(6, 4))
-    plt.plot(sorted_dates, averages, marker='o', color="blue")
-    plt.title("Daily Average Mood")
-    plt.xlabel("Date")
-    plt.ylabel("Average Mood")
-
-    # 4) X-Achse konfigurieren (Datumsformatierung)
-    ax = plt.gca()
-    ax.xaxis.set_major_locator(mdates.AutoDateLocator(maxticks=10))
-    ax.xaxis.set_major_formatter(mdates.DateFormatter('%b-%d'))
-    plt.xticks(rotation=45, fontsize=8)
-
-    # 5) Plot speichern
-    out_path = os.path.join(CHART_OUTPUT_DIR, "line_chart.png")
-    plt.tight_layout()
-    plt.savefig(out_path, bbox_inches='tight')
-    plt.close()
-
-    return out_path
-
-def create_daily_pie_charts(filtered_data):
-    if not os.path.exists(CHART_OUTPUT_DIR):
-        os.makedirs(CHART_OUTPUT_DIR)
-
-    color_mapping = {
-        6: "lightgreen", 5: "darkgreen",
-        4: "lightsalmon", 3: "darkred",
-        2: "lightgrey",   1: "darkgrey",
-        0: "black"
-    }
-
-    unique_dates = sorted(set(row[0] for row in filtered_data))
-    paths = []
-    for d in unique_dates:
-        day_data = [row for row in filtered_data if row[0] == d]
-        frequency = {}
-        for row in day_data:
+        # 1) Tagesdurchschnitt berechnen
+        day_values = {}
+        for row in filtered_data:
+            date_str = row[0]  # z.B. "2025-01-01"
             try:
+                d_obj = datetime.strptime(date_str, "%Y-%m-%d")
                 val = int(row[2])
             except ValueError:
                 continue
-            frequency[val] = frequency.get(val, 0) + 1
+            day_values.setdefault(d_obj, []).append(val)
 
-        labels, sizes, colors = [], [], []
-        for val in sorted(frequency.keys(), reverse=True):
-            labels.append(str(val))
-            sizes.append(frequency[val])
-            colors.append(color_mapping.get(val, "grey"))
-        if not sizes:
-            continue
+        # 2) Sortieren und Durchschnitts-Liste anlegen
+        sorted_dates = sorted(day_values.keys())
+        averages = [sum(day_values[d]) / len(day_values[d]) for d in sorted_dates]
 
-        date_tag = d.replace("-", "")
-        out_path = os.path.join(CHART_OUTPUT_DIR, f"pie_{date_tag}.png")
+        # Für das Plotten mit Kivy Garden Graph:
+        #    x-Achse = Indizes (0, 1, 2, ...)
+        #    y-Achse = Durchschnittswerte
+        # Später können wir manuell Labels anlegen.
 
-        plt.figure(figsize=(5, 3), facecolor="white")
-        plt.pie(sizes, labels=labels, colors=colors, autopct='%1.1f%%')
-        plt.title(f"Pie Chart for {d}")
-        plt.savefig(out_path, bbox_inches='tight', facecolor="white")
-        plt.close()
-        paths.append(out_path)
-    return paths
+        # 3) Graph-Objekt erstellen
+        self.graph = Graph(
+            xlabel='Date',
+            ylabel='Average Mood',
+            x_ticks_minor=0,
+            x_ticks_major=1,
+            y_ticks_major=1,
+            y_grid_label=True,
+            x_grid_label=True,
+            padding=5,
+            x_grid=True,
+            y_grid=True,
+            draw_border=True,
+            background_color=[1, 1, 1, 1],  # Weißer Hintergrund
+            border_color=[0, 0, 0, 1],      # Schwarzer Rand
+            tick_color=[0, 0, 0, 1]         # Schwarze Achsen-Beschriftungen
+        )
 
-def create_bar_chart(filtered_data):
-    if not os.path.exists(CHART_OUTPUT_DIR):
-        os.makedirs(CHART_OUTPUT_DIR)
-    frequency = {}
-    for row in filtered_data:
-        try:
-            val = int(row[2])
-        except ValueError:
-            continue
-        frequency[val] = frequency.get(val, 0) + 1
-    keys = sorted(frequency.keys(), reverse=True)
-    values = [frequency[k] for k in keys]
-    color_mapping = {
-        6: "lightgreen",
-        5: "darkgreen",
-        4: "lightsalmon",
-        3: "darkred",
-        2: "lightgrey",
-        1: "darkgrey",
-        0: "black"
-    }
-    colors = [color_mapping.get(k, "grey") for k in keys]
-    plt.figure(figsize=(5, 3))
-    plt.bar([str(k) for k in keys], values, color=colors)
-    plt.title("Bar Chart Example")
-    out_path = os.path.join(CHART_OUTPUT_DIR, "bar_chart.png")
-    plt.savefig(out_path, bbox_inches='tight')
-    plt.close()
-    return out_path
+        # 4) Achsen-Bereiche dynamisch anpassen
+        if averages:
+            # x von 0 bis len(averages)-1
+            self.graph.xmin = 0
+            self.graph.xmax = len(averages) - 1
+            # y z. B. von min(averages) - 0.5 bis max(averages) + 0.5
+            y_min = min(averages) - 0.5
+            y_max = max(averages) + 0.5
+            # oder fest: self.graph.ymin, self.graph.ymax = 0, 6
+            self.graph.ymin = min(0, y_min)
+            self.graph.ymax = max(6, y_max)
+        else:
+            # Fallback, falls keine Daten
+            self.graph.xmin, self.graph.xmax = 0, 0
+            self.graph.ymin, self.graph.ymax = 0, 6
 
-def create_summary_pie_chart(filtered_data):
-    if not os.path.exists(CHART_OUTPUT_DIR):
-        os.makedirs(CHART_OUTPUT_DIR)
-    frequency = {}
-    for row in filtered_data:
-        try:
-            val = int(row[2])
-        except ValueError:
-            continue
-        frequency[val] = frequency.get(val, 0) + 1
-    keys = sorted(frequency.keys(), reverse=True)
-    sizes = [frequency[k] for k in keys]
-    color_mapping = {
-        6: "lightgreen",
-        5: "darkgreen",
-        4: "lightsalmon",
-        3: "darkred",
-        2: "lightgrey",
-        1: "darkgrey",
-        0: "black"
-    }
-    colors = [color_mapping.get(k, "grey") for k in keys]
-    plt.figure(figsize=(5, 3))
-    plt.pie(sizes, labels=[str(k) for k in keys], colors=colors, autopct='%1.1f%%')
-    plt.title("Summary Pie Chart")
-    out_path = os.path.join(CHART_OUTPUT_DIR, "summary_pie.png")
-    plt.savefig(out_path, bbox_inches='tight')
-    plt.close()
-    return out_path
+        # 5) Plot (Linie mit Punkten)
+        plot = MeshLinePlot(color=[0, 0, 1, 1])  # Blau
+        plot.points = [(i, avg) for i, avg in enumerate(averages)]
+        self.graph.add_plot(plot)
 
+        # 6) Graph dem Layout hinzufügen
+        self.add_widget(self.graph)
+
+        # Optional: Manuelle Labels für das X-Achsen-Raster
+        #           Da Graph() standardmäßig nur Zahlen anzeigt,
+        #           könntest du z. B. unten eigene Label-Widgets hinzufügen.
+        #           (siehe "Optionale X-Labels" unten)
+
+#----------------------------------------------------------------------------------------
 def generate_pdf_from_images(image_paths, output_pdf):
     pdf = FPDF()
     pdf.set_auto_page_break(auto=True, margin=10)
