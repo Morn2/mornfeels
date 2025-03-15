@@ -10,4 +10,4 @@ commit_message=${1:-"Non specific commit message"}
 git commit -m "$commit_message"
 
 # Führe git push aus
-git push origin main
+git push origin "$current_branch"
