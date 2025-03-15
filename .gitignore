@@ -16,3 +16,8 @@ dist/
 
 # Buildozer
 .buildozer
+
+# Dateien für die IDE
+apps/
+bin/
+
